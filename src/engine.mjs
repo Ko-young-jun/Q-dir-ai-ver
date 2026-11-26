@@ -545,8 +545,7 @@ export function openWithDefaultApp(targetPath) {
     throw new Error(`Path does not exist: ${resolved}`);
   }
   if (process.platform === 'win32') {
-    // Delegate directly to Windows desktop Explorer shell so GUI apps always open visible in foreground
-    const child = spawn('explorer.exe', [resolved], {
+    const child = spawn('rundll32.exe', ['url.dll,FileProtocolHandler', resolved], {
       detached: true,
       stdio: 'ignore',
       windowsHide: false
