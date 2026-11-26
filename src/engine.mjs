@@ -743,31 +743,29 @@ export function copyPathsToOsClipboard(paths = []) {
   const resolved = paths.map((p) => normalizeTargetPath(p)).filter((p) => fs.existsSync(p));
   if (!resolved.length) throw new Error('복사할 유효한 파일이 없습니다.');
   if (process.platform === 'win32') {
-    const psScript = [
-      'Add-Type -AssemblyName System.Windows.Forms',
-      '$col = New-Object System.Collections.Specialized.StringCollection',
-      'foreach ($item in ($env:QDIR_CLIP_PATHS -split [char]10)) {',
-      '  $t = $item.Trim()',
-      '  if ($t) { [void]$col.Add($t) }',
-      '}',
-      '$do = New-Object System.Windows.Forms.DataObject',
-      '$do.SetFileDropList($col)',
-      '[System.Windows.Forms.Clipboard]::SetDataObject($do, $true)'
-    ].join('\n');
-    const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
-    const child = spawn(
-      'powershell.exe',
-      ['-STA', '-NoProfile', '-WindowStyle', 'Hidden', '-EncodedCommand', encoded],
-      {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true,
-        env: { ...process.env, QDIR_CLIP_PATHS: resolved.join('\n') }
-      }
-    );
-    child.unref();
+    const pyScript = path.join(__dirname, 'win-clipboard.py');
+    const pyBin = fs.existsSync(PYTHON_EXE) ? PYTHON_EXE : 'python';
+    return new Promise((resolve, reject) => {
+      const proc = spawn(pyBin, [pyScript], { windowsHide: true });
+      let stdout = '';
+      let stderr = '';
+      proc.stdout.on('data', (d) => { stdout += d.toString('utf8'); });
+      proc.stderr.on('data', (d) => { stderr += d.toString('utf8'); });
+      proc.on('error', reject);
+      proc.on('close', (code) => {
+        try {
+          const parsed = JSON.parse(stdout.trim() || '{}');
+          if (parsed.copiedCount) return resolve(parsed);
+          reject(new Error(parsed.error || stderr.trim() || `clipboard failed (${code})`));
+        } catch {
+          reject(new Error(stderr.trim() || `clipboard failed (${code})`));
+        }
+      });
+      proc.stdin.write(JSON.stringify({ paths: resolved }));
+      proc.stdin.end();
+    });
   }
-  return { copiedCount: resolved.length, paths: resolved };
+  return Promise.resolve({ copiedCount: resolved.length, paths: resolved });
 }
 
 export async function convertFilesToMarkdown(paths = [], { overwrite = false } = {}) {

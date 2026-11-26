@@ -231,7 +231,7 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'POST' && pathname === '/api/fs/clipboard-copy') {
       const body = await readJsonBody(req);
-      const result = copyPathsToOsClipboard(body.paths || []);
+      const result = await copyPathsToOsClipboard(body.paths || []);
       return sendJson(res, 200, result);
     }
 
