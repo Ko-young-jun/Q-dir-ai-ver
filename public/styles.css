@@ -13,15 +13,15 @@
 }
 
 body.dark {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-alt: #162032;
-  --border: #334155;
-  --border-active: #60a5fa;
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --hover: #253349;
-  --selected: #1d4ed8;
+  --bg: #000000;
+  --surface: #000000;
+  --surface-alt: #0b0b0b;
+  --border: #2c2c2c;
+  --border-active: #ffffff;
+  --text: #ffffff;
+  --muted: #b8b8b8;
+  --hover: #1a1a1a;
+  --selected: #263b5e;
   --accent: #60a5fa;
   --danger: #f87171;
 }
@@ -377,7 +377,15 @@ table.file-table tr.selected {
 }
 
 body.dark .file-name-cell {
-  filter: brightness(1.35);
+  color: #ffffff !important;
+  filter: none;
+}
+
+body.dark select,
+body.dark option,
+body.dark input {
+  background: #0b0b0b;
+  color: #ffffff;
 }
 
 .pane-footer {
