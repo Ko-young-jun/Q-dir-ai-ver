@@ -296,7 +296,8 @@ button, select, input {
 }
 
 table.file-table {
-  width: 100%;
+  width: max-content;
+  min-width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -306,12 +307,29 @@ table.file-table th {
   top: 0;
   background: var(--surface-alt);
   border-bottom: 1px solid var(--border);
-  padding: 4px 6px;
+  border-right: 1px solid rgba(148, 163, 184, 0.25);
+  padding: 4px 10px 4px 6px;
   text-align: left;
   font-size: 11px;
   color: var(--muted);
   cursor: pointer;
   user-select: none;
+  z-index: 2;
+}
+
+.col-resizer {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  width: 7px;
+  height: 100%;
+  cursor: col-resize;
+  z-index: 3;
+}
+
+.col-resizer:hover,
+.col-resizer.resizing {
+  background: rgba(37, 99, 235, 0.45);
 }
 
 table.file-table td {
@@ -330,9 +348,7 @@ table.file-table tr.selected {
   background: var(--selected);
 }
 
-.col-name { width: 54%; }
-.col-size { width: 18%; text-align: right !important; }
-.col-date { width: 28%; }
+.col-size { text-align: right !important; }
 
 .file-name-cell {
   display: flex;

@@ -5,6 +5,23 @@ const paneSelections = [new Set(), new Set(), new Set(), new Set()];
 const paneLastClicked = [null, null, null, null];
 let fsClipboard = null; // { mode: 'copy' | 'cut', paths: [] }
 
+function loadColWidths() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('qdir_ai_col_widths') || 'null');
+    if (Array.isArray(saved) && saved.length === 4) return saved;
+  } catch {}
+  return [
+    { name: 320, size: 78, mtime: 122 },
+    { name: 320, size: 78, mtime: 122 },
+    { name: 320, size: 78, mtime: 122 },
+    { name: 320, size: 78, mtime: 122 }
+  ];
+}
+const paneColWidths = loadColWidths();
+function saveColWidths() {
+  try { localStorage.setItem('qdir_ai_col_widths', JSON.stringify(paneColWidths)); } catch {}
+}
+
 const panesContainer = document.getElementById('panesContainer');
 const previewPanel = document.getElementById('previewPanel');
 const previewTitle = document.getElementById('previewTitle');
@@ -293,6 +310,7 @@ function renderPane(paneId) {
     ? `폴더 ${listing.folderCount} · 파일 ${listing.fileCount} (${formatBytes(listing.totalBytes)})`
     : '';
 
+  const cw = paneColWidths[paneId] || { name: 320, size: 78, mtime: 122 };
   el.innerHTML = `
     <div class="pane-tabs">${tabsHtml}</div>
     <div class="pane-nav">
@@ -307,11 +325,16 @@ function renderPane(paneId) {
     </div>
     <div class="pane-list-wrap">
       <table class="file-table">
+        <colgroup>
+          <col data-col="name" style="width:${cw.name}px" />
+          <col data-col="size" style="width:${cw.size}px" />
+          <col data-col="mtime" style="width:${cw.mtime}px" />
+        </colgroup>
         <thead>
           <tr>
-            <th class="col-name" data-sort="name">이름 ${tab.sortBy === 'name' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-            <th class="col-size" data-sort="size">크기 ${tab.sortBy === 'size' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}</th>
-            <th class="col-date" data-sort="mtime">수정일 ${tab.sortBy === 'mtime' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}</th>
+            <th class="col-name" data-sort="name">이름 ${tab.sortBy === 'name' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}<span class="col-resizer" data-resize-col="name" title="드래그: 너비 조절 · 더블클릭: 자동 맞춤"></span></th>
+            <th class="col-size" data-sort="size">크기 ${tab.sortBy === 'size' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}<span class="col-resizer" data-resize-col="size" title="드래그: 너비 조절"></span></th>
+            <th class="col-date" data-sort="mtime">수정일 ${tab.sortBy === 'mtime' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}<span class="col-resizer" data-resize-col="mtime" title="드래그: 너비 조절"></span></th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
@@ -401,13 +424,62 @@ function renderPane(paneId) {
   el.querySelector('[data-refresh]')?.addEventListener('click', () => loadPaneListing(paneId));
 
   el.querySelectorAll('th[data-sort]').forEach((th) => {
-    th.addEventListener('click', () => {
+    th.addEventListener('click', (e) => {
+      if (e.target.classList.contains('col-resizer')) return;
       const sortBy = th.dataset.sort;
       const sortDir = tab.sortBy === sortBy && tab.sortDir === 'asc' ? 'desc' : 'asc';
       api(`/api/pane/${paneId}/options`, {
         method: 'POST',
         body: JSON.stringify({ sortBy, sortDir })
       }).catch(() => {});
+    });
+  });
+
+  // Column header resize (drag + double-click auto-fit)
+  el.querySelectorAll('.col-resizer').forEach((handle) => {
+    const colKey = handle.dataset.resizeCol;
+    handle.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const colEl = el.querySelector(`col[data-col="${colKey}"]`);
+      if (!colEl) return;
+      const startX = e.clientX;
+      const startW = paneColWidths[paneId][colKey] || colEl.getBoundingClientRect().width || 120;
+      handle.classList.add('resizing');
+
+      function onMove(ev) {
+        const nextW = Math.max(54, Math.min(1200, Math.round(startW + (ev.clientX - startX))));
+        paneColWidths[paneId][colKey] = nextW;
+        colEl.style.width = `${nextW}px`;
+      }
+      function onUp() {
+        handle.classList.remove('resizing');
+        saveColWidths();
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+      }
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+    });
+
+    handle.addEventListener('dblclick', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const colEl = el.querySelector(`col[data-col="${colKey}"]`);
+      if (!colEl) return;
+      if (colKey === 'name' && listing?.entries?.length) {
+        const longest = listing.entries.reduce((m, it) => Math.max(m, it.name.length), 12);
+        const fitW = Math.max(180, Math.min(900, Math.round(longest * 10.5 + 70)));
+        paneColWidths[paneId].name = fitW;
+        colEl.style.width = `${fitW}px`;
+      } else if (colKey === 'size') {
+        paneColWidths[paneId].size = 84;
+        colEl.style.width = '84px';
+      } else if (colKey === 'mtime') {
+        paneColWidths[paneId].mtime = 128;
+        colEl.style.width = '128px';
+      }
+      saveColWidths();
     });
   });
 
