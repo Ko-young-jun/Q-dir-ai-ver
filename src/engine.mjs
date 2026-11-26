@@ -491,7 +491,7 @@ export async function previewFile(targetPath, { maxBytes = 65536 } = {}) {
     };
   }
 
-  const richExts = new Set(['.hwp', '.hwpx', '.xlsx', '.xlsm', '.docx', '.pptx', '.zip']);
+  const richExts = new Set(['.hwp', '.hwpx', '.xlsx', '.xlsm', '.docx', '.pptx', '.odp', '.odt', '.ods', '.zip']);
   if (richExts.has(ext)) {
     const pyScript = path.join(__dirname, 'doc-preview.py');
     const pyBin = fs.existsSync(PYTHON_EXE) ? PYTHON_EXE : 'python';

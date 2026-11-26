@@ -153,6 +153,47 @@ def convert_pptx(path):
     return "\n\n".join(out).strip() + "\n"
 
 
+def convert_odf(path, ext):
+    title = os.path.splitext(os.path.basename(path))[0]
+    out = [f"# {title}\n"]
+    with zipfile.ZipFile(path, "r") as zf:
+        if "content.xml" not in zf.namelist():
+            return f"# {title}\n\n(본문 없음)\n"
+        root = ET.fromstring(zf.read("content.xml"))
+    if ext == ".odp":
+        pages = [el for el in root.iter() if el.tag.endswith("}page")]
+        for idx, page in enumerate(pages, 1):
+            lines = []
+            for p in page.iter():
+                if p.tag.endswith("}p") or p.tag.endswith("}h"):
+                    txt = "".join(p.itertext()).strip()
+                    if txt:
+                        lines.append(txt)
+            out.append(f"## 슬라이드 {idx}")
+            if lines:
+                out.append("\n".join(f"- {l}" for l in lines))
+    elif ext == ".ods":
+        for idx, tbl in enumerate([el for el in root.iter() if el.tag.endswith("}table")], 1):
+            name = tbl.attrib.get("{urn:oasis:names:tc:opendocument:xmlns:table:1.0}name") or f"Sheet{idx}"
+            rows = []
+            for tr in [el for el in tbl if el.tag.endswith("}table-row")]:
+                vals = [" ".join("".join(tc.itertext()).split()) for tc in tr if tc.tag.endswith("}table-cell")]
+                while vals and vals[-1] == "":
+                    vals.pop()
+                if vals:
+                    rows.append(vals)
+            out.append(f"## {name}")
+            if rows:
+                out.append(grid_to_md_table(rows))
+    else:
+        for el in root.iter():
+            if el.tag.endswith("}p") or el.tag.endswith("}h"):
+                txt = "".join(el.itertext()).strip()
+                if txt:
+                    out.append(txt)
+    return "\n\n".join(out).strip() + "\n"
+
+
 def main():
     if len(sys.argv) < 3:
         print(json.dumps({"error": "Usage: doc-to-md.py <inputPath> <outputPath>"}, ensure_ascii=False))
@@ -171,6 +212,8 @@ def main():
             md = convert_xlsx(src)
         elif ext == ".pptx":
             md = convert_pptx(src)
+        elif ext in (".odp", ".odt", ".ods"):
+            md = convert_odf(src, ext)
         elif ext in (".txt", ".csv", ".json", ".html", ".htm", ".xml"):
             with open(src, "r", encoding="utf-8", errors="replace") as f:
                 md = f"# {os.path.splitext(os.path.basename(src))[0]}\n\n{f.read()}\n"

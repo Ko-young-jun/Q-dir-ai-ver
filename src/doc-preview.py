@@ -152,6 +152,69 @@ def preview_pptx(path, max_chars=25000):
     }
 
 
+def preview_odf(path, ext, max_chars=25000):
+    with zipfile.ZipFile(path, "r") as zf:
+        if "content.xml" not in zf.namelist():
+            return {"kind": "document", "docType": ext.lstrip(".").upper(), "content": "(본문 없음)", "truncated": False}
+        root = ET.fromstring(zf.read("content.xml"))
+
+    if ext == ".odp":
+        slides_out = []
+        pages = [el for el in root.iter() if el.tag.endswith("}page")]
+        for idx, page in enumerate(pages, 1):
+            lines = []
+            for p in page.iter():
+                if p.tag.endswith("}p") or p.tag.endswith("}h"):
+                    txt = "".join(p.itertext()).strip()
+                    if txt:
+                        lines.append(txt)
+            if lines:
+                slides_out.append(f"=== 슬라이드 {idx} ===\n" + "\n".join(lines))
+        full = "\n\n".join(slides_out) if slides_out else "(추출된 텍스트 없음)"
+        return {
+            "kind": "document",
+            "docType": "ODP",
+            "content": full[:max_chars],
+            "truncated": len(full) > max_chars,
+            "totalChars": len(full),
+        }
+
+    if ext == ".ods":
+        sheets = []
+        for tbl in [el for el in root.iter() if el.tag.endswith("}table")][:10]:
+            name = tbl.attrib.get("{urn:oasis:names:tc:opendocument:xmlns:table:1.0}name") or f"Sheet{len(sheets)+1}"
+            rows = []
+            for r_idx, tr in enumerate([el for el in tbl if el.tag.endswith("}table-row")]):
+                if r_idx >= 80:
+                    break
+                vals = []
+                for tc in [el for el in tr if el.tag.endswith("}table-cell")][:20]:
+                    vals.append(" ".join("".join(tc.itertext()).split()))
+                while vals and vals[-1] == "":
+                    vals.pop()
+                rows.append(vals)
+            while rows and not rows[-1]:
+                rows.pop()
+            sheets.append({"name": name, "rows": rows, "truncated": False})
+        return {"kind": "xlsx", "sheets": sheets}
+
+    # .odt
+    lines = []
+    for el in root.iter():
+        if el.tag.endswith("}p") or el.tag.endswith("}h"):
+            txt = "".join(el.itertext()).strip()
+            if txt:
+                lines.append(txt)
+    full = "\n".join(lines) if lines else "(추출된 텍스트 없음)"
+    return {
+        "kind": "document",
+        "docType": "ODT",
+        "content": full[:max_chars],
+        "truncated": len(full) > max_chars,
+        "totalChars": len(full),
+    }
+
+
 def decode_zip_name(info):
     name = info.filename
     try:
@@ -266,6 +329,8 @@ def main():
             res = preview_docx(target)
         elif ext == ".pptx":
             res = preview_pptx(target)
+        elif ext in (".odp", ".odt", ".ods"):
+            res = preview_odf(target, ext)
         elif ext == ".zip":
             res = preview_zip(target)
         else:
