@@ -195,10 +195,13 @@ export async function listDirectory(targetPath, options = {}) {
     if (!showHidden && isHidden) continue;
 
     if (filter) {
-      const hasGlob = filter.includes('*') || filter.includes('?');
-      const matched = hasGlob
-        ? wildcardMatch(name, filter)
-        : name.toLowerCase().includes(filter.toLowerCase());
+      const tokens = filter.split(/[;,]/).map((t) => t.trim()).filter(Boolean);
+      const matched = tokens.some((tok) => {
+        const hasGlob = tok.includes('*') || tok.includes('?');
+        return hasGlob
+          ? wildcardMatch(name, tok)
+          : name.toLowerCase().includes(tok.toLowerCase());
+      });
       if (!matched) continue;
     }
 

@@ -18,6 +18,17 @@ function loadColWidths() {
   ];
 }
 const paneColWidths = loadColWidths();
+const EXT_PRESETS = [
+  { label: '전체', value: '' },
+  { label: '한글 (HWP)', value: '*.hwp;*.hwpx' },
+  { label: 'PDF', value: '*.pdf' },
+  { label: '엑셀', value: '*.xlsx;*.xls;*.xlsm;*.csv' },
+  { label: '워드/PPT', value: '*.docx;*.doc;*.pptx;*.ppt' },
+  { label: '이미지', value: '*.png;*.jpg;*.jpeg;*.gif;*.webp;*.bmp' },
+  { label: '압축', value: '*.zip;*.rar;*.7z;*.gz' },
+  { label: '텍스트/코드', value: '*.txt;*.md;*.json;*.js;*.py;*.html' }
+];
+const paneComposing = [false, false, false, false];
 function saveColWidths() {
   try { localStorage.setItem('qdir_ai_col_widths', JSON.stringify(paneColWidths)); } catch {}
 }
@@ -248,6 +259,10 @@ function renderPane(paneId) {
   const prevWrap = el.querySelector('.pane-list-wrap');
   const prevScrollTop = prevWrap ? prevWrap.scrollTop : 0;
   const prevScrollLeft = prevWrap ? prevWrap.scrollLeft : 0;
+  const prevFilterEl = el.querySelector('.filter-input');
+  const wasFilterFocused = Boolean(prevFilterEl && document.activeElement === prevFilterEl);
+  const prevSelStart = wasFilterFocused ? prevFilterEl.selectionStart : null;
+  const prevSelEnd = wasFilterFocused ? prevFilterEl.selectionEnd : null;
   const pane = appState.panes[paneId];
   const tab = activeTabOf(paneId);
   const listing = paneListings[paneId];
@@ -314,6 +329,12 @@ function renderPane(paneId) {
 
   const cw = paneColWidths[paneId] || { name: 320, size: 78, mtime: 122 };
   const totalMinW = (cw.name || 320) + (cw.size || 78) + (cw.mtime || 122);
+  const curFilter = tab.filter || '';
+  const presetMatched = EXT_PRESETS.some((p) => p.value === curFilter);
+  const extOptionsHtml = EXT_PRESETS
+    .map((p) => `<option value="${escapeHtml(p.value)}" ${curFilter === p.value ? 'selected' : ''}>${escapeHtml(p.label)}</option>`)
+    .join('') + (!presetMatched && curFilter ? `<option value="${escapeHtml(curFilter)}" selected>직접입력</option>` : '');
+
   el.innerHTML = `
     <div class="pane-tabs">${tabsHtml}</div>
     <div class="pane-nav">
@@ -323,7 +344,8 @@ function renderPane(paneId) {
       <button class="drive-btn" data-hist="up" title="상위 폴더">▲</button>
       <div class="drive-bar">${drivesHtml}</div>
       <input class="path-input" value="${escapeHtml(tab.path)}" title="경로 입력 후 Enter" />
-      <input class="filter-input" value="${escapeHtml(tab.filter || '')}" placeholder="필터 (*.pdf)" />
+      <select class="ext-filter-select" title="확장자 빠른 필터">${extOptionsHtml}</select>
+      <input class="filter-input" value="${escapeHtml(curFilter)}" placeholder="검색/필터" title="파일명 검색 또는 *.pdf;*.hwp 입력" />
       <button class="drive-btn" data-refresh="1" title="새로고침">↻</button>
     </div>
     <div class="pane-list-wrap">
@@ -414,16 +436,41 @@ function renderPane(paneId) {
     }
   });
 
+  const extSelect = el.querySelector('.ext-filter-select');
+  extSelect?.addEventListener('change', () => {
+    api(`/api/pane/${paneId}/options`, {
+      method: 'POST',
+      body: JSON.stringify({ filter: extSelect.value })
+    }).catch(() => {});
+  });
+
   const filterInput = el.querySelector('.filter-input');
   let filterTimer = null;
-  filterInput.addEventListener('input', () => {
+  function sendFilterUpdate() {
+    if (paneComposing[paneId]) return;
     clearTimeout(filterTimer);
     filterTimer = setTimeout(() => {
+      if (paneComposing[paneId]) return;
       api(`/api/pane/${paneId}/options`, {
         method: 'POST',
         body: JSON.stringify({ filter: filterInput.value })
       }).catch(() => {});
-    }, 200);
+    }, 320);
+  }
+  filterInput.addEventListener('compositionstart', () => { paneComposing[paneId] = true; });
+  filterInput.addEventListener('compositionend', () => {
+    paneComposing[paneId] = false;
+    sendFilterUpdate();
+  });
+  filterInput.addEventListener('input', sendFilterUpdate);
+  filterInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      clearTimeout(filterTimer);
+      api(`/api/pane/${paneId}/options`, {
+        method: 'POST',
+        body: JSON.stringify({ filter: filterInput.value })
+      }).catch(() => {});
+    }
   });
 
   el.querySelector('[data-refresh]')?.addEventListener('click', () => loadPaneListing(paneId));
@@ -609,6 +656,15 @@ function renderPane(paneId) {
   if (newWrap) {
     newWrap.scrollTop = prevScrollTop;
     newWrap.scrollLeft = prevScrollLeft;
+  }
+  if (wasFilterFocused) {
+    const newFilterEl = el.querySelector('.filter-input');
+    if (newFilterEl) {
+      newFilterEl.focus();
+      if (prevSelStart !== null && prevSelEnd !== null) {
+        try { newFilterEl.setSelectionRange(prevSelStart, prevSelEnd); } catch {}
+      }
+    }
   }
 }
 

@@ -282,11 +282,20 @@ button, select, input {
 }
 
 .filter-input {
-  width: 105px;
+  width: 96px;
   padding: 3px 6px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
+}
+
+.ext-filter-select {
+  padding: 3px 4px;
+  font-size: 11px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  max-width: 92px;
 }
 
 .pane-list-wrap {
