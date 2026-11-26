@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Q-Dir AI — Quad File Explorer</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo">Q</span>
+      <div>
+        <strong>Q-Dir AI</strong>
+        <span class="badge" id="syncBadge" title="MCP 실시간 동기화 상태">LIVE</span>
+      </div>
+    </div>
+
+    <div class="toolbar-group" title="레이아웃 전환">
+      <button class="icon-btn" data-layout="quad" title="4분할 (Quad)">⊞ 4분할</button>
+      <button class="icon-btn" data-layout="dual-h" title="좌우 2분할">◫ 좌우</button>
+      <button class="icon-btn" data-layout="dual-v" title="상하 2분할">⊟ 상하</button>
+      <button class="icon-btn" data-layout="triple-left" title="좌1 우2">◧ 좌1우2</button>
+      <button class="icon-btn" data-layout="triple-top" title="상1 하2">⬒ 상1하2</button>
+      <button class="icon-btn" data-layout="single" title="1분할">▢ 1분할</button>
+    </div>
+
+    <div class="toolbar-group">
+      <select id="favoritesSelect" title="즐겨찾기 (Quick-Links)">
+        <option value="">★ 즐겨찾기 이동...</option>
+      </select>
+      <button class="btn" id="btnAddFav" title="활성 패널 경로를 즐겨찾기에 추가">+ ★</button>
+      <button class="btn" id="btnCompare" title="패널 1과 패널 2 비교">⇄ 비교</button>
+      <button class="btn" id="btnPreviewToggle" title="미리보기 패널 토글">👁 미리보기</button>
+      <button class="btn" id="btnSyncQdir" title="PC의 Q-Dir.ini 색상 필터 동기화">↻ Q-Dir.ini</button>
+      <button class="btn" id="btnTheme" title="라이트/다크 테마 전환">◐ 테마</button>
+    </div>
+  </header>
+
+  <section class="ai-bar" id="aiBar">
+    <div class="ai-bar-group">
+      <span class="ai-bar-label">📌 AI 전달 경로</span>
+      <div class="ai-chips" id="pinnedChips"><span class="ai-empty">항목 선택 후 [📌 AI전달] 클릭</span></div>
+      <button class="chip-btn" id="btnCopyPins" title="핀된 경로를 클립보드에 복사">📋 복사</button>
+      <button class="chip-btn" id="btnClearPins" title="핀 목록 비우기">비우기</button>
+    </div>
+    <div class="ai-bar-group">
+      <span class="ai-bar-label">🤖 AI 작업 파일</span>
+      <div class="ai-chips" id="workedChips"><span class="ai-empty">아직 없음</span></div>
+      <button class="chip-btn" id="btnClearWorked" title="AI 작업 기록 지우기">지우기</button>
+    </div>
+  </section>
+
+  <main class="workspace">
+    <section id="panesContainer" class="panes layout-quad"></section>
+    <aside id="previewPanel" class="preview-panel hidden">
+      <div class="preview-header">
+        <strong id="previewTitle">미리보기</strong>
+        <div class="preview-header-actions">
+          <button class="chip-btn hidden" id="btnEditImage" title="이미지 편집 (QR코드 삽입·누끼·AI 수정영역)">✏️ 편집</button>
+          <button class="chip-btn hidden" id="btnEditPdf" title="PDF 페이지 순서·회전·삭제·병합·추출·텍스트/도장 삽입">✏️ PDF 편집</button>
+          <button class="chip-btn" id="btnOpenDefaultApp" title="Windows 기본 프로그램으로 열기">↗ 열기</button>
+          <button class="icon-btn" id="btnClosePreview">✕</button>
+        </div>
+      </div>
+      <div id="previewMeta" class="preview-meta"></div>
+      <div id="previewBody" class="preview-body">파일을 선택하면 미리보기가 표시됩니다.</div>
+    </aside>
+  </main>
+
+  <footer class="statusbar">
+    <span id="statusText">준비됨 — 드래그 앤 드롭으로 패널 간 복사 (Shift+드롭: 이동)</span>
+    <span id="mcpStatusText">MCP 동기화 대기 중</span>
+  </footer>
+
+  <!-- Compare Modal -->
+  <div id="compareModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <strong>패널 비교 (Pane 1 vs Pane 2)</strong>
+        <button class="icon-btn" id="btnCloseCompare">✕</button>
+      </div>
+      <div id="compareBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Image Editor Modal -->
+  <div id="imageEditorModal" class="modal hidden">
+    <div class="modal-card editor-card">
+      <div class="modal-header">
+        <strong id="imgEditorTitle">✏️ 이미지 편집</strong>
+        <div class="preview-header-actions">
+          <button class="btn" id="btnImgSave" style="background:#2563eb;color:#fff;border-color:#2563eb">💾 저장</button>
+          <button class="icon-btn" id="btnImgMaximize" title="편집 창 최대화 / 원래 크기">⛶</button>
+          <button class="icon-btn" id="btnCloseImgEditor">✕</button>
+        </div>
+      </div>
+      <div class="editor-toolbar">
+        <button class="icon-btn active" data-img-tool="select" title="레이어 선택·이동 (빈 곳 드래그 시 화면 이동)">↖ 레이어선택</button>
+        <button class="icon-btn" data-img-tool="pan" title="왼쪽 클릭 드래그로 화면 이동 (어느 도구에서나 Space+드래그 가능)">✋ 화면이동</button>
+        <button class="icon-btn" data-img-tool="marquee" title="사각 영역 선택 (복제·오려내기·투명삭제·자르기)">⬚ 사각선택</button>
+        <button class="icon-btn" data-img-tool="lasso" title="자유 영역 선택 (올가미: 복제·오려내기·투명삭제)">〰️ 자유선택</button>
+        <button class="btn" id="btnImgAddOverlay" title="QR코드/이미지 파일 얹기 (또는 Ctrl+V)">🖼️ 이미지 넣기</button>
+        <input type="file" id="imgOverlayFileInput" accept="image/*" style="display:none" />
+        <button class="icon-btn" data-img-tool="ai-region" title="AI에게 수정을 요청할 영역 드래그 지정">🤖 AI 수정영역</button>
+        <button class="icon-btn" data-img-tool="eraser" title="마우스로 문질러 투명하게 지우기">🧹 투명지우개</button>
+        <button class="icon-btn" data-img-tool="wand" title="클릭한 배경색을 투명하게 제거 (마술봉 누끼)">🪄 마술봉</button>
+        <button class="btn" id="btnImgRemoveWhite" title="선택된 얹은 이미지(또는 메인 이미지)의 흰 배경 즉시 투명화">🤍 흰배경</button>
+        <button class="btn" id="btnImgAiCutout" title="AI 자동 누끼 (선택된 얹은 이미지가 있으면 그 레이어만, 없으면 전체)" style="background:#7c3aed;color:#fff;border-color:#7c3aed">✨ AI 누끼</button>
+        <button class="icon-btn" data-img-tool="brush" title="자유 브러시 그리기">🖌️ 브러시</button>
+        <button class="icon-btn" data-img-tool="eyedropper" title="이미지에서 색상 추출 (스포이드)">💉 스포이드</button>
+        <button class="icon-btn" data-img-tool="crop" title="드래그 영역 자르기">✂️ 자르기</button>
+        <button class="icon-btn" data-img-tool="mosaic" title="드래그 영역 모자이크">▦ 모자이크</button>
+        <button class="icon-btn" data-img-tool="rect" title="사각형">▭ 사각형</button>
+        <button class="icon-btn" data-img-tool="arrow" title="화살표">➜ 화살표</button>
+        <button class="icon-btn" data-img-tool="text" title="텍스트 입력">T 텍스트</button>
+        <input type="color" id="imgToolColor" value="#ef4444" title="색상" />
+        <input type="range" id="imgToolSize" min="2" max="40" value="10" style="width:72px" title="브러시/지우개/선 크기" />
+        <button class="btn" id="btnImgAdjustToggle" title="밝기·대비·채도 보정">🎚️ 보정</button>
+        <button class="btn" id="btnImgRotate" title="원하는 각도로 자유 회전 (-180° ~ +180°)">🔄 회전</button>
+        <button class="btn" id="btnImgFlipH" title="좌우 반전">↔</button>
+        <button class="btn" id="btnImgFlipV" title="상하 반전">↕</button>
+        <button class="btn" id="btnImgResize" title="크기 조절">⤢ 크기</button>
+        <button class="btn" id="btnImgZoomOut" title="축소">🔍-</button>
+        <button class="btn" id="btnImgZoomReset" title="화면 맞춤">100%</button>
+        <button class="btn" id="btnImgZoomIn" title="확대">🔍+</button>
+        <button class="btn" id="btnImgUndo" title="실행 취소 (Ctrl+Z)">↶ 취소</button>
+      </div>
+      <div id="imgAdjustBar" class="editor-adjust-bar hidden">
+        <label>밝기 <input type="range" id="adjBright" min="50" max="150" value="100" /></label>
+        <label>대비 <input type="range" id="adjContrast" min="50" max="150" value="100" /></label>
+        <label>채도 <input type="range" id="adjSaturate" min="0" max="200" value="100" /></label>
+        <button class="btn" id="btnAdjApply" style="background:#2563eb;color:#fff;border-color:#2563eb">적용</button>
+        <button class="chip-btn" id="btnAdjReset">초기화</button>
+      </div>
+      <div id="imgRotateBar" class="editor-adjust-bar hidden">
+        <span id="imgRotTarget" style="font-weight:700">배경 회전</span>
+        <input type="range" id="rotSlider" min="-180" max="180" value="0" style="width:180px" />
+        <input type="number" id="rotInput" min="-180" max="180" value="0" style="width:58px;padding:2px 4px;border:1px solid var(--border);border-radius:4px" />°
+        <button class="chip-btn" id="btnRotM90">-90°</button>
+        <button class="chip-btn" id="btnRot0">0°</button>
+        <button class="chip-btn" id="btnRotP90">+90°</button>
+        <button class="btn" id="btnRotApply" style="background:#2563eb;color:#fff;border-color:#2563eb">적용</button>
+      </div>
+      <div id="imgAiRegionBar" class="editor-ai-bar hidden">
+        <span id="imgAiRegionCoords">마우스로 수정할 영역을 드래그하세요</span>
+        <input id="imgAiNote" class="path-input" placeholder="수정 요청 메모 (예: 이 부분 글자를 '2026 대플'로 바꿔줘)" />
+        <button class="btn" id="btnImgSendAiRegion" style="background:#dc2626;color:#fff;border-color:#dc2626">📌 AI 수정요청 전달</button>
+        <button class="chip-btn" id="btnImgClearRegion">영역 해제</button>
+      </div>
+      <div id="imgSelectionBar" class="editor-sel-bar hidden">
+        <span id="imgSelCoords">선택 영역 없음</span>
+        <button class="chip-btn" id="btnSelCopyLayer" title="선택 영역을 새 레이어로 복사 (Ctrl+C)">📋 레이어로 복제</button>
+        <button class="chip-btn" id="btnSelCutLayer" title="선택 영역을 오려내어 새 레이어로 이동 (Ctrl+X)">✂️ 오려내기</button>
+        <button class="chip-btn" id="btnSelDelete" title="선택 영역을 투명하게 지우기 (Delete)">🗑️ 투명 삭제</button>
+        <button class="chip-btn" id="btnSelMosaic" title="선택 영역 모자이크">▦ 모자이크</button>
+        <button class="chip-btn" id="btnSelCrop" title="선택 영역만 남기고 자르기">✂️ 자르기</button>
+        <button class="chip-btn" id="btnSelClear" title="선택 해제 (Esc)">✕ 해제</button>
+      </div>
+      <div class="editor-main">
+        <div class="editor-canvas-wrap">
+          <canvas id="imgEditorCanvas"></canvas>
+        </div>
+        <aside class="editor-layers-panel">
+          <div class="editor-layers-header">
+            <strong>📑 레이어</strong>
+            <span id="imgLayerCount" class="ai-empty">0개</span>
+          </div>
+          <div id="imgLayersList" class="editor-layers-list"></div>
+        </aside>
+      </div>
+      <div class="editor-footer">
+        <span id="imgEditorInfo">Ctrl+V로 클립보드 이미지(QR코드 등)를 바로 얹고, 우하단 파란 핸들로 크기를 조절하세요.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PDF Editor Modal -->
+  <div id="pdfEditorModal" class="modal hidden">
+    <div class="modal-card editor-card">
+      <div class="modal-header">
+        <strong id="pdfEditorTitle">📄 PDF 편집</strong>
+        <div class="preview-header-actions">
+          <button class="btn" id="btnPdfMerge" title="다른 PDF 파일을 뒤에 합치기">➕ PDF 합치기</button>
+          <input type="file" id="pdfMergeFileInput" accept=".pdf,application/pdf" style="display:none" />
+          <button class="btn" id="btnPdfExtract" title="체크한 페이지만 새 PDF로 추출 저장">✂️ 선택 추출</button>
+          <button class="btn" id="btnPdfSaveAll" style="background:#2563eb;color:#fff;border-color:#2563eb">💾 저장</button>
+          <button class="icon-btn" id="btnPdfMaximize" title="최대화 / 원래 크기">⛶</button>
+          <button class="icon-btn" id="btnClosePdfEditor">✕</button>
+        </div>
+      </div>
+      <div class="editor-toolbar">
+        <button class="icon-btn active" data-pdf-tool="select" title="얹은 텍스트·가리기·도장 선택 및 드래그 이동">↖ 선택/이동</button>
+        <button class="icon-btn" data-pdf-tool="text" title="PDF 위 원하는 곳을 클릭해 바로 텍스트 입력">T 텍스트 추가</button>
+        <button class="icon-btn" data-pdf-tool="mask" title="가릴 영역을 마우스로 드래그">⬜ 가리기</button>
+        <button class="btn" id="btnPdfAddStamp" title="도장·서명·QR 이미지 삽입 (또는 Ctrl+V)">🖼️ 도장/QR</button>
+        <input type="file" id="pdfStampFileInput" accept="image/*" style="display:none" />
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px;margin-left:6px">
+          글자크기 <input id="pdfAnnSize" type="number" min="6" max="72" value="14" style="width:48px;padding:2px 4px;border:1px solid var(--border);border-radius:4px" />
+        </label>
+        <input id="pdfAnnColor" type="color" value="#111111" title="텍스트 색상 (가리기는 흰색 자동 기본, 색상 변경 가능)" />
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:12px">
+          가리기색 <input id="pdfMaskColor" type="color" value="#ffffff" title="가리기 박스 색상" />
+        </label>
+        <button class="btn" id="btnPdfZoomOut" title="축소">🔍-</button>
+        <button class="btn" id="btnPdfZoomReset" title="맞춤">100%</button>
+        <button class="btn" id="btnPdfZoomIn" title="확대">🔍+</button>
+      </div>
+      <div class="editor-main">
+        <aside class="editor-layers-panel" style="width:225px;border-left:none;border-right:1px solid var(--border)">
+          <div class="editor-layers-header">
+            <strong>📑 페이지 목록</strong>
+            <span id="pdfPageCount" class="ai-empty">0쪽</span>
+          </div>
+          <div id="pdfPagesList" class="editor-layers-list"></div>
+        </aside>
+        <div class="editor-canvas-wrap" id="pdfStageWrap">
+          <div class="pdf-stage" id="pdfStage">
+            <img id="pdfPageImg" alt="PDF 페이지" draggable="false" />
+            <div class="pdf-overlay" id="pdfOverlay"></div>
+          </div>
+        </div>
+        <aside class="editor-layers-panel" style="width:210px">
+          <div class="editor-layers-header">
+            <strong id="pdfAnnPageLabel">추가된 항목</strong>
+          </div>
+          <div id="pdfAnnList" class="editor-layers-list"></div>
+        </aside>
+      </div>
+      <div class="editor-footer">
+        <span id="pdfEditorHint">[T 텍스트 추가] 클릭 → PDF 위 원하는 위치를 클릭해 바로 타이핑하세요 (더블클릭: 재수정 · 드래그: 이동 · Delete: 삭제 · Ctrl+V: 도장/QR 붙여넣기)</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+  <script src="/image-editor.js"></script>
+  <script src="/pdf-editor.js"></script>
+</body>
+</html>
