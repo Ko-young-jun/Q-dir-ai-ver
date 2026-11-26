@@ -211,21 +211,51 @@ function ensurePaneElements() {
     el.addEventListener('drop', async (e) => {
       e.preventDefault();
       el.classList.remove('drag-over');
-      const raw = e.dataTransfer.getData('application/json');
-      if (!raw) return;
-      const { sourcePane, paths } = JSON.parse(raw);
-      if (sourcePane === i || !paths?.length) return;
       const destDir = activeTabOf(i).path;
       const isMove = e.shiftKey;
-      try {
-        await api(isMove ? '/api/fs/move' : '/api/fs/copy', {
-          method: 'POST',
-          body: JSON.stringify({ sources: paths, destDir })
+
+      // 1) Internal web drag JSON
+      const raw = e.dataTransfer.getData('application/json');
+      if (raw) {
+        const { sourcePane, paths } = JSON.parse(raw);
+        if (sourcePane === i || !paths?.length) return;
+        try {
+          await api(isMove ? '/api/fs/move' : '/api/fs/copy', {
+            method: 'POST',
+            body: JSON.stringify({ sources: paths, destDir })
+          });
+          setStatus(`${paths.length}개 항목을 패널 ${i + 1}로 ${isMove ? '이동' : '복사'}했습니다.`);
+          await refreshAllPanes();
+        } catch (err) {
+          setStatus(`오류: ${err.message}`);
+        }
+        return;
+      }
+
+      // 2) Native OS file drop (Electron internal pane-to-pane OR external Explorer -> Q-Dir AI)
+      const droppedFiles = e.dataTransfer?.files;
+      if (droppedFiles?.length && window.qdirElectron?.getPathForFile) {
+        const paths = [...droppedFiles]
+          .map((f) => window.qdirElectron.getPathForFile(f))
+          .filter(Boolean);
+        if (!paths.length) return;
+        // Skip if dropping onto the exact same parent directory
+        const destNorm = destDir.replace(/[\\/]+$/, '').toLowerCase();
+        const filtered = paths.filter((p) => {
+          const parent = p.replace(/[\\/][^\\/]+$/, '').toLowerCase();
+          return parent !== destNorm;
         });
-        setStatus(`${paths.length}개 항목을 패널 ${i + 1}로 ${isMove ? '이동' : '복사'}했습니다.`);
-        await refreshAllPanes();
-      } catch (err) {
-        setStatus(`오류: ${err.message}`);
+        if (!filtered.length) return;
+        try {
+          await api(isMove ? '/api/fs/move' : '/api/fs/copy', {
+            method: 'POST',
+            body: JSON.stringify({ sources: filtered, destDir })
+          });
+          setStatus(`${filtered.length}개 항목을 패널 ${i + 1}로 ${isMove ? '이동' : '복사'}했습니다.`);
+          await refreshAllPanes();
+        } catch (err) {
+          setStatus(`드롭 오류: ${err.message}`);
+        }
       }
     });
     panesContainer.appendChild(el);
@@ -603,6 +633,11 @@ function renderPane(paneId) {
       const itemPath = tr.dataset.path;
       if (!itemPath) return;
       const paths = selected.has(itemPath) ? [...selected] : [itemPath];
+      if (window.qdirElectron?.isElectron) {
+        e.preventDefault();
+        window.qdirElectron.startDrag(paths);
+        return;
+      }
       e.dataTransfer.setData('application/json', JSON.stringify({ sourcePane: paneId, paths }));
     });
   });
@@ -1083,7 +1118,8 @@ window.addEventListener('keydown', async (e) => {
     if (!selArr.length) return;
     e.preventDefault();
     fsClipboard = { mode: 'copy', paths: selArr };
-    setStatus(`📋 ${selArr.length}개 항목 복사 대기 — 원하는 패널에서 Ctrl+V로 붙여넣기`);
+    api('/api/fs/clipboard-copy', { method: 'POST', body: JSON.stringify({ paths: selArr }) }).catch(() => {});
+    setStatus(`📋 ${selArr.length}개 항목 복사됨 — Q-Dir AI 패널·카카오톡·탐색기 어디서나 Ctrl+V로 붙여넣기`);
   } else if (ctrl && key === 'x') {
     if (!selArr.length) return;
     e.preventDefault();

@@ -11,9 +11,13 @@ if (-not $nodeExe) {
   exit 1
 }
 
-Write-Host "1/3. Node.js 패키지 설치 중..." -ForegroundColor Cyan
+Write-Host "1/3. Node.js 및 Electron 패키지 설치 중..." -ForegroundColor Cyan
 Push-Location $appDir
 npm install
+$electronExe = Join-Path $appDir 'node_modules\electron\dist\electron.exe'
+if (-not (Test-Path $electronExe) -and (Test-Path (Join-Path $appDir 'node_modules\electron\install.js'))) {
+  node node_modules/electron/install.js
+}
 Pop-Location
 
 Write-Host "`n2/3. 설치된 AI 클라이언트(Antigravity / Codex / Claude)에 qdir-ai MCP 등록 중..." -ForegroundColor Cyan

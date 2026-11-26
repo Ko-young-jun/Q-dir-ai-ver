@@ -37,6 +37,7 @@ import {
   saveEditedPdf,
   openOrPreviewZipEntry,
   extractZipAllToSibling,
+  copyPathsToOsClipboard,
   convertFilesToMarkdown,
   getActiveTab,
   normalizeTargetPath
@@ -225,6 +226,12 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const result = await deleteItems(body.paths || []);
       broadcast('fs_change', { operation: 'delete', count: result.count });
+      return sendJson(res, 200, result);
+    }
+
+    if (req.method === 'POST' && pathname === '/api/fs/clipboard-copy') {
+      const body = await readJsonBody(req);
+      const result = copyPathsToOsClipboard(body.paths || []);
       return sendJson(res, 200, result);
     }
 

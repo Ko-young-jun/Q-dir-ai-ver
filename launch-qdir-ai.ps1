@@ -2,6 +2,8 @@
 $url = 'http://127.0.0.1:4747'
 $appDir = $PSScriptRoot
 $serverScript = Join-Path $appDir 'src\server.mjs'
+$electronExe = Join-Path $appDir 'node_modules\electron\dist\electron.exe'
+$electronMain = Join-Path $appDir 'electron\main.cjs'
 $nodeExe = (Get-Command node.exe -ErrorAction SilentlyContinue).Source
 if (-not $nodeExe) { $nodeExe = 'C:\Program Files\nodejs\node.exe' }
 
@@ -26,4 +28,10 @@ if (-not (Test-QDirServer)) {
   }
 }
 
-Start-Process $url
+if ((Test-Path $electronExe) -and (Test-Path $electronMain)) {
+  Start-Process -FilePath $electronExe `
+    -ArgumentList "`"$electronMain`"" `
+    -WorkingDirectory $appDir
+} else {
+  Start-Process $url
+}

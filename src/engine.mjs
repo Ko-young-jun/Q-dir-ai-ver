@@ -739,6 +739,25 @@ export async function extractZipAllToSibling(zipPath) {
   return parsed;
 }
 
+export function copyPathsToOsClipboard(paths = []) {
+  const resolved = paths.map((p) => normalizeTargetPath(p)).filter((p) => fs.existsSync(p));
+  if (!resolved.length) throw new Error('복사할 유효한 파일이 없습니다.');
+  if (process.platform === 'win32') {
+    const child = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', '$p = $env:QDIR_CLIP_PATHS -split "`n"; Set-Clipboard -Path $p'],
+      {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+        env: { ...process.env, QDIR_CLIP_PATHS: resolved.join('\n') }
+      }
+    );
+    child.unref();
+  }
+  return { copiedCount: resolved.length, paths: resolved };
+}
+
 export async function convertFilesToMarkdown(paths = [], { overwrite = false } = {}) {
   const pyScript = path.join(__dirname, 'doc-to-md.py');
   const pyBin = fs.existsSync(PYTHON_EXE) ? PYTHON_EXE : 'python';
