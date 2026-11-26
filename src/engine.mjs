@@ -545,7 +545,16 @@ export function openWithDefaultApp(targetPath) {
     throw new Error(`Path does not exist: ${resolved}`);
   }
   if (process.platform === 'win32') {
-    const child = spawn('cmd.exe', ['/c', 'start', '', resolved], { detached: true, stdio: 'ignore', windowsHide: true });
+    const child = spawn(
+      'powershell.exe',
+      ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', 'Start-Process -FilePath $env:QDIR_OPEN_TARGET'],
+      {
+        detached: true,
+        stdio: 'ignore',
+        windowsHide: true,
+        env: { ...process.env, QDIR_OPEN_TARGET: resolved }
+      }
+    );
     child.unref();
     return { opened: resolved };
   }
