@@ -750,7 +750,9 @@ export function copyPathsToOsClipboard(paths = []) {
       '  $t = $item.Trim()',
       '  if ($t) { [void]$col.Add($t) }',
       '}',
-      '[System.Windows.Forms.Clipboard]::SetFileDropList($col)'
+      '$do = New-Object System.Windows.Forms.DataObject',
+      '$do.SetFileDropList($col)',
+      '[System.Windows.Forms.Clipboard]::SetDataObject($do, $true)'
     ].join('\n');
     const encoded = Buffer.from(psScript, 'utf16le').toString('base64');
     const child = spawn(
