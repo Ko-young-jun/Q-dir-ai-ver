@@ -1231,7 +1231,6 @@
     const flat = document.createElement('canvas');
     flat.width = baseCanvas.width;
     flat.height = baseCanvas.height;
-    const prevAngle = basePreviewAngle;
     basePreviewAngle = 0;
     renderComposite(flat.getContext('2d'), false);
     overlays = [];

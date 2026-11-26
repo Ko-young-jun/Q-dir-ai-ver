@@ -1,5 +1,4 @@
 import sys
-import io
 import json
 import base64
 
