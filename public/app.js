@@ -271,15 +271,16 @@ function renderPane(paneId) {
 
   let rowsHtml = '';
   if (!listing) {
-    rowsHtml = `<tr><td colspan="3">불러오는 중...</td></tr>`;
+    rowsHtml = `<tr><td colspan="4">불러오는 중...</td></tr>`;
   } else if (listing.error) {
-    rowsHtml = `<tr><td colspan="3" style="color:var(--danger)">${escapeHtml(listing.error)}</td></tr>`;
+    rowsHtml = `<tr><td colspan="4" style="color:var(--danger)">${escapeHtml(listing.error)}</td></tr>`;
   } else {
     if (listing.parent) {
       rowsHtml += `<tr data-parent="${escapeHtml(listing.parent)}">
         <td class="col-name"><div class="file-name-cell">⬆️ ..</div></td>
         <td class="col-size"></td>
         <td class="col-date"></td>
+        <td class="col-filler"></td>
       </tr>`;
     }
     const pinnedSet = new Set((appState.pinnedForAi || []).map((p) => p.path.toLowerCase()));
@@ -299,10 +300,11 @@ function renderPane(paneId) {
         <td class="col-name" title="${escapeHtml(entry.name)}"><div class="file-name-cell" style="color:${escapeHtml(entry.color)}">${badges}<span class="file-icon">${icon}</span><span class="file-name-text">${escapeHtml(entry.name)}</span></div></td>
         <td class="col-size">${entry.isDirectory ? '&lt;DIR&gt;' : formatBytes(entry.size)}</td>
         <td class="col-date">${formatDate(entry.mtime)}</td>
+        <td class="col-filler"></td>
       </tr>`;
     }
     if (!listing.entries.length) {
-      rowsHtml += `<tr><td colspan="3" style="color:var(--muted)">표시할 항목이 없습니다.</td></tr>`;
+      rowsHtml += `<tr><td colspan="4" style="color:var(--muted)">표시할 항목이 없습니다.</td></tr>`;
     }
   }
 
@@ -311,6 +313,7 @@ function renderPane(paneId) {
     : '';
 
   const cw = paneColWidths[paneId] || { name: 320, size: 78, mtime: 122 };
+  const totalMinW = (cw.name || 320) + (cw.size || 78) + (cw.mtime || 122);
   el.innerHTML = `
     <div class="pane-tabs">${tabsHtml}</div>
     <div class="pane-nav">
@@ -324,17 +327,19 @@ function renderPane(paneId) {
       <button class="drive-btn" data-refresh="1" title="새로고침">↻</button>
     </div>
     <div class="pane-list-wrap">
-      <table class="file-table">
+      <table class="file-table" style="min-width:${totalMinW}px">
         <colgroup>
           <col data-col="name" style="width:${cw.name}px" />
           <col data-col="size" style="width:${cw.size}px" />
           <col data-col="mtime" style="width:${cw.mtime}px" />
+          <col class="col-filler" />
         </colgroup>
         <thead>
           <tr>
             <th class="col-name" data-sort="name">이름 ${tab.sortBy === 'name' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}<span class="col-resizer" data-resize-col="name" title="드래그: 너비 조절 · 더블클릭: 자동 맞춤"></span></th>
             <th class="col-size" data-sort="size">크기 ${tab.sortBy === 'size' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}<span class="col-resizer" data-resize-col="size" title="드래그: 너비 조절"></span></th>
             <th class="col-date" data-sort="mtime">수정일 ${tab.sortBy === 'mtime' ? (tab.sortDir === 'asc' ? '▲' : '▼') : ''}<span class="col-resizer" data-resize-col="mtime" title="드래그: 너비 조절"></span></th>
+            <th class="col-filler"></th>
           </tr>
         </thead>
         <tbody>${rowsHtml}</tbody>
@@ -447,10 +452,17 @@ function renderPane(paneId) {
       const startW = paneColWidths[paneId][colKey] || colEl.getBoundingClientRect().width || 120;
       handle.classList.add('resizing');
 
+      const tableEl = el.querySelector('table.file-table');
+      function updateTableMinWidth() {
+        const w = paneColWidths[paneId];
+        if (tableEl) tableEl.style.minWidth = `${(w.name || 120) + (w.size || 78) + (w.mtime || 122)}px`;
+      }
+
       function onMove(ev) {
         const nextW = Math.max(54, Math.min(1200, Math.round(startW + (ev.clientX - startX))));
         paneColWidths[paneId][colKey] = nextW;
         colEl.style.width = `${nextW}px`;
+        updateTableMinWidth();
       }
       function onUp() {
         handle.classList.remove('resizing');
@@ -479,6 +491,9 @@ function renderPane(paneId) {
         paneColWidths[paneId].mtime = 128;
         colEl.style.width = '128px';
       }
+      const tableEl = el.querySelector('table.file-table');
+      const w = paneColWidths[paneId];
+      if (tableEl) tableEl.style.minWidth = `${(w.name || 120) + (w.size || 78) + (w.mtime || 122)}px`;
       saveColWidths();
     });
   });

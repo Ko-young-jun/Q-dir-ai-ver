@@ -296,9 +296,16 @@ button, select, input {
 }
 
 table.file-table {
-  width: max-content;
+  width: 100%;
   border-collapse: collapse;
   table-layout: fixed;
+}
+
+th.col-filler,
+td.col-filler {
+  border-right: none !important;
+  cursor: default !important;
+  padding: 0 !important;
 }
 
 table.file-table th {
