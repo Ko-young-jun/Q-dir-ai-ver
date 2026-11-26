@@ -33,8 +33,8 @@ Windows 4분할 탐색기(Q-Dir)의 핵심 워크플로우를 재구현하고, *
 PowerShell에서 아래 명령어를 실행합니다:
 
 ```powershell
-git clone <이 저장소 URL>
-cd qdir-ai
+git clone https://github.com/Ko-young-jun/Q-dir-ai-ver.git
+cd Q-dir-ai-ver
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
