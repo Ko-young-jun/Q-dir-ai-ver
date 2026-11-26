@@ -743,9 +743,14 @@ export function copyPathsToOsClipboard(paths = []) {
   const resolved = paths.map((p) => normalizeTargetPath(p)).filter((p) => fs.existsSync(p));
   if (!resolved.length) throw new Error('복사할 유효한 파일이 없습니다.');
   if (process.platform === 'win32') {
+    const psCmd =
+      'Add-Type -AssemblyName System.Windows.Forms; ' +
+      '$col = New-Object System.Collections.Specialized.StringCollection; ' +
+      'foreach ($item in ($env:QDIR_CLIP_PATHS -split "`n")) { if ($item.Trim()) { [void]$col.Add($item.Trim()) } }; ' +
+      '[System.Windows.Forms.Clipboard]::SetFileDropList($col)';
     const child = spawn(
       'powershell.exe',
-      ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', '$p = $env:QDIR_CLIP_PATHS -split "`n"; Set-Clipboard -Path $p'],
+      ['-STA', '-NoProfile', '-WindowStyle', 'Hidden', '-Command', psCmd],
       {
         detached: true,
         stdio: 'ignore',

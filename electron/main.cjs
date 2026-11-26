@@ -9,15 +9,7 @@ const URL = `http://127.0.0.1:${PORT}`;
 
 let mainWindow = null;
 let serverProc = null;
-
-// 24x24 crisp blue document icon for native OS drag preview
-const DRAG_ICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
-  <rect x="4" y="2" width="24" height="28" rx="4" fill="#2563eb"/>
-  <path d="M10 11h12M10 16h12M10 21h8" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round"/>
-</svg>`;
-const dragIcon = nativeImage.createFromDataURL(
-  'data:image/svg+xml;base64,' + Buffer.from(DRAG_ICON_SVG).toString('base64')
-);
+let dragIcon = null;
 
 function checkServer() {
   return new Promise((resolve) => {
@@ -80,6 +72,10 @@ ipcMain.on('ondragstart', (event, filePaths) => {
   if (!Array.isArray(filePaths) || filePaths.length === 0) return;
   const valid = filePaths.filter((p) => typeof p === 'string' && p.length > 0);
   if (!valid.length) return;
+  const iconPath = path.join(__dirname, 'drag-icon.png');
+  if (!dragIcon || dragIcon.isEmpty()) {
+    dragIcon = nativeImage.createFromPath(iconPath);
+  }
   event.sender.startDrag({
     file: valid[0],
     files: valid,
