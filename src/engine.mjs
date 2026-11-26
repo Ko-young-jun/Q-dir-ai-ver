@@ -739,6 +739,38 @@ export async function extractZipAllToSibling(zipPath) {
   return parsed;
 }
 
+export async function convertFilesToMarkdown(paths = [], { overwrite = false } = {}) {
+  const pyScript = path.join(__dirname, 'doc-to-md.py');
+  const pyBin = fs.existsSync(PYTHON_EXE) ? PYTHON_EXE : 'python';
+  const results = [];
+  const errors = [];
+
+  for (const rawPath of paths) {
+    const resolved = normalizeTargetPath(rawPath);
+    if (!fs.existsSync(resolved) || fs.statSync(resolved).isDirectory()) {
+      errors.push({ path: resolved, error: '폴더는 변환할 수 없습니다.' });
+      continue;
+    }
+    const dir = path.dirname(resolved);
+    const stem = path.basename(resolved, path.extname(resolved));
+    const outPath = resolveUniqueDest(dir, `${stem}.md`, overwrite);
+    try {
+      const { stdout } = await execFileAsync(pyBin, [pyScript, resolved, outPath], {
+        timeout: 60000,
+        maxBuffer: 8 * 1024 * 1024,
+        windowsHide: true
+      });
+      const parsed = JSON.parse(stdout);
+      if (parsed.error) errors.push({ path: resolved, error: parsed.error });
+      else results.push(parsed);
+    } catch (err) {
+      errors.push({ path: resolved, error: err.message });
+    }
+  }
+
+  return { convertedCount: results.length, results, errors };
+}
+
 export async function exportListing(targetPath, format = 'csv') {
   const listing = await listDirectory(targetPath, { showHidden: true });
   const fmt = format.toLowerCase();

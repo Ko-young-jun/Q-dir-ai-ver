@@ -29,6 +29,7 @@ import {
   grepInDirectory,
   formatCompactContext,
   formatCompactListing,
+  convertFilesToMarkdown,
   getActiveTab
 } from './engine.mjs';
 import { wildcardMatch } from './qdir-config.mjs';
@@ -257,6 +258,18 @@ const TOOLS = [
     name: 'qdir_sync_from_local_qdir',
     description: 'Import color filter rules ([Filter2]) and layout defaults from locally installed Q-Dir (%APPDATA%\\Q-Dir\\Q-Dir.ini and start.qdr).',
     inputSchema: { type: 'object', properties: {} }
+  },
+  {
+    name: 'qdir_convert_to_md',
+    description: 'Convert HWP, HWPX, DOCX, PDF, XLSX, PPTX, or TXT files into clean Markdown (.md) files (including Markdown tables) saved alongside the originals.',
+    inputSchema: {
+      type: 'object',
+      required: ['paths'],
+      properties: {
+        paths: { type: 'array', items: { type: 'string' } },
+        overwrite: { type: 'boolean', default: false }
+      }
+    }
   }
 ];
 
@@ -462,6 +475,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       case 'qdir_sync_from_local_qdir':
         return ok(syncFromLocalQDir('mcp'));
+
+      case 'qdir_convert_to_md': {
+        const res = await convertFilesToMarkdown(args.paths || [], { overwrite: Boolean(args.overwrite) });
+        if (res.results.length) {
+          recordAiWork(res.results.map((r) => r.outputPath), { action: 'created', note: 'md변환', updatedBy: 'mcp' });
+        }
+        return okText(
+          `converted=${res.convertedCount} errors=${res.errors.length}\n` +
+          res.results.map((r) => `  + ${r.outputPath} (${r.chars} chars)`).join('\n') +
+          (res.errors.length ? '\n' + res.errors.map((e) => `  ! ${e.path}: ${e.error}`).join('\n') : '')
+        );
+      }
 
       default:
         throw new Error(`Unknown tool: ${name}`);

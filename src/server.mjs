@@ -37,6 +37,7 @@ import {
   saveEditedPdf,
   openOrPreviewZipEntry,
   extractZipAllToSibling,
+  convertFilesToMarkdown,
   getActiveTab,
   normalizeTargetPath
 } from './engine.mjs';
@@ -397,6 +398,15 @@ const server = http.createServer(async (req, res) => {
       const body = await readJsonBody(req);
       const result = await extractZipAllToSibling(body.zipPath);
       broadcast('fs_change', { operation: 'zip_extract', destDir: result.destDir });
+      return sendJson(res, 200, result);
+    }
+
+    if (req.method === 'POST' && pathname === '/api/convert/markdown') {
+      const body = await readJsonBody(req);
+      const result = await convertFilesToMarkdown(body.paths || [], { overwrite: Boolean(body.overwrite) });
+      if (result.convertedCount > 0) {
+        broadcast('fs_change', { operation: 'convert_md', count: result.convertedCount });
+      }
       return sendJson(res, 200, result);
     }
 

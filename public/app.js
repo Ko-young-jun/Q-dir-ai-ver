@@ -371,6 +371,7 @@ function renderPane(paneId) {
       <span>${summary}${selected.size ? ` · 선택 ${selected.size}` : ''}</span>
       <div class="pane-actions">
         <button class="pin-btn" data-act="pin-ai" title="선택 항목(또는 현재 폴더)을 AI에 전달 & 경로 복사">📌 AI전달${selected.size ? ` (${selected.size})` : ''}</button>
+        <button data-act="to-md" title="선택한 문서(HWP/PDF/DOCX/XLSX/PPTX)를 마크다운(.md)으로 변환">📝MD</button>
         <button data-act="reveal" title="Windows 탐색기에서 열기">📂</button>
         <button data-act="mkdir" title="새 폴더">+폴더</button>
         <button data-act="rename" title="이름 변경">이름</button>
@@ -620,6 +621,16 @@ function renderPane(paneId) {
           } catch {
             setStatus(`AI에 전달 완료 (${targets.length}개) — 채팅에서 "핀한 파일"로 바로 지시하세요`);
           }
+        } else if (act === 'to-md') {
+          if (!sel.length) return setStatus('마크다운으로 변환할 문서(HWP/PDF/DOCX/XLSX/PPTX)를 먼저 선택해 주세요.');
+          setStatus(`마크다운(.md) 변환 중... (${sel.length}개)`);
+          const res = await api('/api/convert/markdown', { method: 'POST', body: JSON.stringify({ paths: sel }) });
+          if (res.convertedCount > 0) {
+            setStatus(`MD 변환 완료: ${res.convertedCount}개 생성${res.errors?.length ? ` (실패 ${res.errors.length}개)` : ''}`);
+            await loadPaneListing(paneId);
+          } else {
+            setStatus(`MD 변환 실패: ${res.errors?.[0]?.error || '지원하지 않는 파일 형식입니다.'}`);
+          }
         } else if (act === 'reveal') {
           const target = sel.length ? sel[0] : tab.path;
           await api('/api/reveal', { method: 'POST', body: JSON.stringify({ path: target }) });
@@ -740,12 +751,14 @@ function renderHwpPreview(data, mode) {
 
 const btnEditImage = document.getElementById('btnEditImage');
 const btnEditPdf = document.getElementById('btnEditPdf');
+const btnConvertMd = document.getElementById('btnConvertMd');
 
 async function loadPreview(filePath) {
   if (!filePath) return;
   currentPreviewPath = filePath;
   btnEditImage?.classList.add('hidden');
   btnEditPdf?.classList.add('hidden');
+  btnConvertMd?.classList.add('hidden');
   previewTitle.textContent = filePath.split(/[\\/]/).pop() || '미리보기';
   previewMeta.textContent = `${filePath}`;
   previewBody.innerHTML = '<div class="preview-notice">문서를 불러오는 중...</div>';
@@ -753,6 +766,9 @@ async function loadPreview(filePath) {
     const data = await api(`/api/preview?path=${encodeURIComponent(filePath)}`);
     previewTitle.textContent = data.name || '미리보기';
     previewMeta.textContent = `${data.path} · ${formatBytes(data.size)}`;
+    if (['pdf', 'hwp', 'xlsx', 'document'].includes(data.kind)) {
+      btnConvertMd?.classList.remove('hidden');
+    }
     if (data.kind === 'image') {
       btnEditImage?.classList.remove('hidden');
       previewBody.innerHTML = `<img src="${data.rawUrl}" alt="${escapeHtml(data.name)}" />`;
@@ -943,6 +959,22 @@ btnEditImage?.addEventListener('click', () => {
 btnEditPdf?.addEventListener('click', () => {
   if (currentPreviewPath && window.openPdfEditor) {
     window.openPdfEditor(currentPreviewPath);
+  }
+});
+
+btnConvertMd?.addEventListener('click', async () => {
+  if (!currentPreviewPath) return;
+  try {
+    setStatus('마크다운(.md) 변환 중...');
+    const res = await api('/api/convert/markdown', { method: 'POST', body: JSON.stringify({ paths: [currentPreviewPath] }) });
+    if (res.convertedCount > 0) {
+      setStatus(`MD 변환 완료: ${res.results[0].outputPath}`);
+      await refreshAllPanes();
+    } else {
+      setStatus(`MD 변환 실패: ${res.errors?.[0]?.error || '오류'}`);
+    }
+  } catch (err) {
+    setStatus(`MD 변환 오류: ${err.message}`);
   }
 });
 
