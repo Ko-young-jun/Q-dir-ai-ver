@@ -545,20 +545,13 @@ export function openWithDefaultApp(targetPath) {
     throw new Error(`Path does not exist: ${resolved}`);
   }
   if (process.platform === 'win32') {
-    if (fs.existsSync(PYTHON_EXE)) {
-      const child = spawn(PYTHON_EXE, ['-c', 'import os, sys; os.startfile(sys.argv[1])', resolved], {
-        detached: true,
-        stdio: 'ignore',
-        windowsHide: true
-      });
-      child.unref();
-    } else {
-      const child = spawn('explorer.exe', [resolved], {
-        detached: true,
-        stdio: 'ignore'
-      });
-      child.unref();
-    }
+    // Delegate directly to Windows desktop Explorer shell so GUI apps always open visible in foreground
+    const child = spawn('explorer.exe', [resolved], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: false
+    });
+    child.unref();
     return { opened: resolved };
   }
   return { opened: resolved, unsupportedPlatform: process.platform };

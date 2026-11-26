@@ -119,7 +119,10 @@ function serveStatic(req, res, pathname) {
     return;
   }
   const ext = path.extname(full).toLowerCase();
-  res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+  res.writeHead(200, {
+    'Content-Type': MIME[ext] || 'application/octet-stream',
+    'Cache-Control': 'no-store'
+  });
   fs.createReadStream(full).pipe(res);
 }
 
