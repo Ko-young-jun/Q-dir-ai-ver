@@ -455,10 +455,12 @@ function renderPane(paneId) {
           body: JSON.stringify({ path: tr.dataset.path })
         }).catch((err) => setStatus(err.message));
       } else if (tr.dataset.path) {
-        api('/api/layout', {
+        api('/api/open', {
           method: 'POST',
-          body: JSON.stringify({ showPreview: true, previewPath: tr.dataset.path })
-        }).then(() => loadPreview(tr.dataset.path)).catch(() => {});
+          body: JSON.stringify({ path: tr.dataset.path })
+        })
+          .then(() => setStatus(`기본 프로그램으로 열기: ${tr.dataset.path}`))
+          .catch((err) => setStatus(`열기 오류: ${err.message}`));
       }
     });
 
