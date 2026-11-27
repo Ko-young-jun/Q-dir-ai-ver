@@ -83,6 +83,12 @@ ipcMain.on('ondragstart', (event, filePaths) => {
   });
 });
 
+ipcMain.on('show-item-in-folder', (_event, targetPath) => {
+  if (typeof targetPath === 'string' && targetPath.trim()) {
+    shell.showItemInFolder(targetPath);
+  }
+});
+
 app.whenReady().then(async () => {
   await ensureServerRunning();
   createWindow();

@@ -1050,8 +1050,13 @@ export function revealInExplorer(targetPath) {
   }
   if (process.platform === 'win32') {
     const isDir = fs.statSync(resolved).isDirectory();
-    const args = isDir ? [resolved] : ['/select,', resolved];
-    const child = spawn('explorer.exe', args, { detached: true, stdio: 'ignore' });
+    const rawArg = isDir ? `"${resolved}"` : `/select,"${resolved}"`;
+    const child = spawn('explorer.exe', [rawArg], {
+      detached: true,
+      stdio: 'ignore',
+      windowsHide: false,
+      windowsVerbatimArguments: true
+    });
     child.unref();
     return { revealed: resolved, isDirectory: isDir };
   }

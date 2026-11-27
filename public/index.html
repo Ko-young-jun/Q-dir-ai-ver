@@ -234,6 +234,23 @@
     </div>
   </div>
 
+  <!-- Custom Prompt Modal (Electron does not support window.prompt) -->
+  <div id="qdirPromptModal" class="modal hidden" style="z-index:999">
+    <div class="modal-card" style="width:min(440px, 92vw)">
+      <div class="modal-header">
+        <strong id="qdirPromptTitle">입력</strong>
+        <button class="icon-btn" id="qdirPromptClose">✕</button>
+      </div>
+      <div class="modal-body" style="display:flex;flex-direction:column;gap:10px">
+        <input id="qdirPromptInput" class="path-input" style="width:100%;padding:6px 8px;font-size:13px" />
+        <div style="display:flex;justify-content:flex-end;gap:6px">
+          <button class="btn" id="qdirPromptCancel">취소</button>
+          <button class="btn" id="qdirPromptOk" style="background:#2563eb;color:#fff;border-color:#2563eb">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script src="/app.js"></script>
   <script src="/image-editor.js"></script>
   <script src="/pdf-editor.js"></script>

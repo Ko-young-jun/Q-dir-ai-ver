@@ -47,6 +47,55 @@ const compareBody = document.getElementById('compareBody');
 const pinnedChips = document.getElementById('pinnedChips');
 const workedChips = document.getElementById('workedChips');
 
+window.qdirPrompt = function (message, defaultValue = '') {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('qdirPromptModal');
+    const title = document.getElementById('qdirPromptTitle');
+    const input = document.getElementById('qdirPromptInput');
+    const btnOk = document.getElementById('qdirPromptOk');
+    const btnCancel = document.getElementById('qdirPromptCancel');
+    const btnClose = document.getElementById('qdirPromptClose');
+
+    title.textContent = message || '입력';
+    input.value = defaultValue ?? '';
+    modal.classList.remove('hidden');
+
+    function cleanup(val) {
+      modal.classList.add('hidden');
+      btnOk.removeEventListener('click', onOk);
+      btnCancel.removeEventListener('click', onCancel);
+      btnClose.removeEventListener('click', onCancel);
+      input.removeEventListener('keydown', onKey);
+      resolve(val);
+    }
+    function onOk() { cleanup(input.value); }
+    function onCancel() { cleanup(null); }
+    function onKey(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+      else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    }
+
+    btnOk.addEventListener('click', onOk);
+    btnCancel.addEventListener('click', onCancel);
+    btnClose.addEventListener('click', onCancel);
+    input.addEventListener('keydown', onKey);
+
+    setTimeout(() => {
+      input.focus();
+      input.select();
+    }, 0);
+  });
+};
+
+async function revealPathInExplorer(targetPath) {
+  if (window.qdirElectron?.showItemInFolder) {
+    window.qdirElectron.showItemInFolder(targetPath);
+    return;
+  }
+  await api('/api/reveal', { method: 'POST', body: JSON.stringify({ path: targetPath }) });
+}
+
 async function api(url, opts = {}) {
   const res = await fetch(url, {
     headers: { 'Content-Type': 'application/json' },
@@ -154,7 +203,7 @@ function renderAiBar() {
     workedChips.querySelectorAll('[data-reveal]').forEach((btn) => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        api('/api/reveal', { method: 'POST', body: JSON.stringify({ path: btn.dataset.reveal }) })
+        revealPathInExplorer(btn.dataset.reveal)
           .then(() => setStatus(`Windows 탐색기에서 열림: ${btn.dataset.reveal}`))
           .catch((err) => setStatus(err.message));
       });
@@ -668,19 +717,19 @@ function renderPane(paneId) {
           }
         } else if (act === 'reveal') {
           const target = sel.length ? sel[0] : tab.path;
-          await api('/api/reveal', { method: 'POST', body: JSON.stringify({ path: target }) });
+          await revealPathInExplorer(target);
           setStatus(`Windows 탐색기에서 열림: ${target}`);
         } else if (act === 'mkdir') {
-          const name = prompt('새 폴더 이름:');
-          if (!name) return;
-          await api('/api/fs/mkdir', { method: 'POST', body: JSON.stringify({ parentDir: tab.path, name }) });
+          const name = await window.qdirPrompt('새 폴더 이름:');
+          if (!name || !name.trim()) return;
+          await api('/api/fs/mkdir', { method: 'POST', body: JSON.stringify({ parentDir: tab.path, name: name.trim() }) });
           await loadPaneListing(paneId);
         } else if (act === 'rename') {
           if (sel.length !== 1) return setStatus('이름을 변경할 항목 1개를 선택해 주세요.');
           const cur = sel[0].split(/[\\/]/).pop();
-          const newName = prompt('새 이름:', cur);
-          if (!newName || newName === cur) return;
-          await api('/api/fs/rename', { method: 'POST', body: JSON.stringify({ path: sel[0], newName }) });
+          const newName = await window.qdirPrompt('새 이름:', cur);
+          if (!newName || !newName.trim() || newName.trim() === cur) return;
+          await api('/api/fs/rename', { method: 'POST', body: JSON.stringify({ path: sel[0], newName: newName.trim() }) });
           selected.clear();
           await loadPaneListing(paneId);
         } else if (act === 'delete') {
@@ -1151,10 +1200,10 @@ window.addEventListener('keydown', async (e) => {
     if (selArr.length !== 1) return;
     e.preventDefault();
     const cur = selArr[0].split(/[\\/]/).pop();
-    const newName = prompt('새 이름:', cur);
-    if (!newName || newName === cur) return;
+    const newName = await window.qdirPrompt('새 이름:', cur);
+    if (!newName || !newName.trim() || newName.trim() === cur) return;
     try {
-      await api('/api/fs/rename', { method: 'POST', body: JSON.stringify({ path: selArr[0], newName }) });
+      await api('/api/fs/rename', { method: 'POST', body: JSON.stringify({ path: selArr[0], newName: newName.trim() }) });
       selected.clear();
       await loadPaneListing(paneId);
     } catch (err) {

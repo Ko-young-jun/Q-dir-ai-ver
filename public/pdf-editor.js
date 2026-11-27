@@ -525,7 +525,7 @@
     }
     const base = (currentPath.split(/[\\/]/).pop() || 'doc.pdf').replace(/\.pdf$/i, '');
     const defaultName = selectedOnly ? `${base}_extracted.pdf` : `${base}_edited.pdf`;
-    const fileName = prompt('저장할 PDF 파일명 (같은 폴더에 저장됩니다):', defaultName);
+    const fileName = await window.qdirPrompt('저장할 PDF 파일명 (같은 폴더에 저장됩니다):', defaultName);
     if (!fileName) return;
 
     try {

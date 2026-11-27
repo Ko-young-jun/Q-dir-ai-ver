@@ -723,16 +723,17 @@
     }
 
     if (activeTool === 'text') {
-      const text = prompt('입력할 텍스트:');
-      if (!text) return;
-      pushUndo();
-      const fontSize = Math.max(18, Number(sizeInput.value) * 6 * Math.max(1, baseCanvas.width / 900));
-      baseCtx.save();
-      baseCtx.font = `bold ${Math.round(fontSize)}px "Malgun Gothic", sans-serif`;
-      baseCtx.fillStyle = colorInput.value;
-      baseCtx.fillText(text, pt.x, pt.y);
-      baseCtx.restore();
-      redraw();
+      window.qdirPrompt('입력할 텍스트:').then((text) => {
+        if (!text) return;
+        pushUndo();
+        const fontSize = Math.max(18, Number(sizeInput.value) * 6 * Math.max(1, baseCanvas.width / 900));
+        baseCtx.save();
+        baseCtx.font = `bold ${Math.round(fontSize)}px "Malgun Gothic", sans-serif`;
+        baseCtx.fillStyle = colorInput.value;
+        baseCtx.fillText(text, pt.x, pt.y);
+        baseCtx.restore();
+        redraw();
+      });
       return;
     }
 
@@ -1362,8 +1363,8 @@
     applyZoomStyle();
   });
 
-  document.getElementById('btnImgResize').addEventListener('click', () => {
-    const input = prompt(`새 가로 크기(px) 입력 (현재 ${baseCanvas.width}×${baseCanvas.height}):`, String(baseCanvas.width));
+  document.getElementById('btnImgResize').addEventListener('click', async () => {
+    const input = await window.qdirPrompt(`새 가로 크기(px) 입력 (현재 ${baseCanvas.width}×${baseCanvas.height}):`, String(baseCanvas.width));
     const newW = Number(input);
     if (!newW || newW < 16 || newW > 8000) return;
     const newH = Math.max(1, Math.round((baseCanvas.height * newW) / baseCanvas.width));
@@ -1446,7 +1447,7 @@
     renderComposite(out.getContext('2d'), false);
     const dataUrl = out.toDataURL('image/png');
     const defaultName = (currentPath.split(/[\\/]/).pop() || 'image.png').replace(/\.[^.]+$/, '') + '_edited.png';
-    const fileName = prompt('저장할 파일명 (같은 폴더에 저장됩니다):', defaultName);
+    const fileName = await window.qdirPrompt('저장할 파일명 (같은 폴더에 저장됩니다):', defaultName);
     if (!fileName) return;
     try {
       const res = await fetch('/api/image/save', {
